@@ -9,9 +9,9 @@ from mne.io import RawArray as ra
 from mne.time_frequency import psd_multitaper as pm
 
 urls = {
-    'small': 'https://archive.ics.uci.edu/ml/machine-learning-databases/eeg-mld/smni_eeg_data.tar.gz',
-    'large_train': 'https://archive.ics.uci.edu/ml/machine-learning-databases/eeg-mld/SMNI_CMI_TRAIN.tar.gz',
-    'large_test': 'https://archive.ics.uci.edu/ml/machine-learning-databases/eeg-mld/SMNI_CMI_TEST.tar.gz',
+    # 'small': 'https://archive.ics.uci.edu/ml/machine-learning-databases/eeg-mld/smni_eeg_data.tar.gz',
+    # 'large_train': 'https://archive.ics.uci.edu/ml/machine-learning-databases/eeg-mld/SMNI_CMI_TRAIN.tar.gz',
+    # 'large_test': 'https://archive.ics.uci.edu/ml/machine-learning-databases/eeg-mld/SMNI_CMI_TEST.tar.gz',
     'full': 'https://archive.ics.uci.edu/ml/machine-learning-databases/eeg-mld/eeg_full.tar'
 }
 
@@ -30,9 +30,9 @@ from subprocess import getoutput as gop
 import glob
 
 # único arquivo somente empacotado (tar)
-#os.mkdir('dataset/eeg_full/')
-#gop('tar -xvf dataset/eeg_full.tar -C dataset/eeg_full')
-#os.remove('dataset/eeg_full.tar')
+# os.mkdir('dataset/eeg_full/')
+# gop('tar -xvf dataset/eeg_full.tar -C dataset/eeg_full')
+# os.remove('dataset/eeg_full.tar')
 
 while glob.glob('dataset/**/*.gz', recursive=True):
     # quando o arquivo está empacotado (tar) e compactado (gz)
@@ -45,10 +45,10 @@ while glob.glob('dataset/**/*.gz', recursive=True):
 print('Descompactações finalizadas!')
 
 # organizando melhor as pastas
-#os.rename('dataset/smni_eeg_data', 'dataset/small')
-#os.rename('dataset/eeg_full', 'dataset/full')
-#os.rename('dataset/SMNI_CMI_TRAIN/', 'dataset/large_train/')
-#os.rename('dataset/SMNI_CMI_TEST/', 'dataset/large_test/')
+os.rename('dataset/smni_eeg_data', 'dataset/small')
+# os.rename('dataset/eeg_full', 'dataset/full')
+os.rename('dataset/SMNI_CMI_TRAIN/', 'dataset/large_train/')
+os.rename('dataset/SMNI_CMI_TEST/', 'dataset/large_test/')
 print(gop('ls -l dataset/'))
 
 from re import search
@@ -124,11 +124,11 @@ x2, y2, z2 = d2[:,0], d2[:,1], d2[:,2]
 # fig.tight_layout()
 # plt.show()
 
-info = mne.create_info(
-    ch_names=['O2'],
-    ch_types=['eeg'],
-    sfreq = 256
-)
+# info = mne.create_info(
+#     ch_names=['O2'],
+#     ch_types=['eeg'],
+#     sfreq = 256
+# )
 # print(len(data[1][1][1]))
 # print(len(data[1][1]))
 # print(len(data[1]))
@@ -145,3 +145,4 @@ for k in range(0,len(data)):
             print("arquivo: ",k)
             print("eletrodo: ",i)
             print("len arquivo: ",len(data[k][i]))
+            print("dado milivolt", data[k][i][1])
