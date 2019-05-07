@@ -57,12 +57,9 @@ print(data.shape)
 
 # Função auxilar que achou a pasta e arquivo com erro na base large (remoção de arquivo necessária)
 # for k in range(0,len(data)):
-#     if(len(data[k]) < 30):
-#             print(len(data))
-#             print("pasta: ",k)
-
 #     for i in range(0,len(data[k])):
 #         if(len(data[k][i]) < 64):
+#             print("pasta: ",k)
 #             print("arquivo: ",i)
 #             print("len arquivo: ",len(data[k][i]))
 #             print("data", data[k][i])
@@ -70,34 +67,58 @@ print(data.shape)
 
 # Prepara info para os eletrodos selecionados
 # primeira sessão, primeiro trial
-pessoa1 = data[0][0]
+newData = list()
+for person in data:
+    for eletrodos in person:
+        newEletrodos = list()
+        for eletrodo in eletrodos:
+            newEletrodos.append(np.mean(eletrodo))
+        newData.append(newEletrodos)
 
-ch_names = ch_names
-ch_types = ['eeg'] * 64
+data = newData
+newData = None
 
-info = mne.create_info(
-    ch_names=ch_names, 
-    sfreq=256, 
-    ch_types=ch_types)
+# for k in range(0,len(data)):
+#     for i in range(0,len(data[k])):
+#         for j in range(0,len(data[k][i])):
+#             print("data", data[k][i][j])
+#             aux = np.mean(data[k][i][j])
+#             data[k][i] = aux
+#             print("data", data[k][i])
+#             break
+#         break
+#     break
 
-raw = mne.io.RawArray(pessoa1, info)
 
-raw.drop_channels(['x','nd','y'])
-montage = mne.channels.read_montage('standard_1020')
-raw.set_montage(montage)
-raw.plot_psd()
-print()
 
-# Grafico no domínio da frequencia
-# plt.plot(np.linspace(0,1,256), raw.get_data()[0])
-# plt.xlabel('tempo (s)')
-# plt.ylabel('Dados EEG (mV/cm²)')
+# pessoa1 = data[0][0]
 
-raw2 = deepcopy(raw)
-raw2.notch_filter(np.arange(60, 121, 60), fir_design='firwin')
-raw2.filter(5., 50., fir_design='firwin')
-raw2.plot_psd(area_mode='range')
-print()
+# ch_names = ch_names
+# ch_types = ['eeg'] * 64
 
-print("Finalizei com Sucesso!!!")
+# info = mne.create_info(
+#     ch_names=ch_names, 
+#     sfreq=256, 
+#     ch_types=ch_types)
+
+# raw = mne.io.RawArray(pessoa1, info)
+
+# raw.drop_channels(['x','nd','y'])
+# montage = mne.channels.read_montage('standard_1020')
+# raw.set_montage(montage)
+# raw.plot_psd()
+# print()
+
+# # Grafico no domínio da frequencia
+# # plt.plot(np.linspace(0,1,256), raw.get_data()[0])
+# # plt.xlabel('tempo (s)')
+# # plt.ylabel('Dados EEG (mV/cm²)')
+
+# raw2 = deepcopy(raw)
+# raw2.notch_filter(np.arange(60, 121, 60), fir_design='firwin')
+# raw2.filter(5., 50., fir_design='firwin')
+# raw2.plot_psd(area_mode='range')
+# print()
+
+# print("Finalizei com Sucesso!!!")
 
