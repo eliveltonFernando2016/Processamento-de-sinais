@@ -32,7 +32,6 @@ print(labels)
 print("cat")
 categorical_labels = to_categorical(labels, num_classes=len(set(labels)))
 print(categorical_labels)
-exit(0)
 
 def plot_history(h):
     loss_list = [s for s in h.history.keys() if 'loss' in s and 'val' not in s]

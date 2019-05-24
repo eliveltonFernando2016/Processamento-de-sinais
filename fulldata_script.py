@@ -26,11 +26,11 @@ def importNomalized(pathName, labelsList):
     for types in path:
         if("co2c" in types):
             for i in range (0,30):
-                labelsList.append([[0.,1.]]*61)
+                labelsList.append([0.])
                 # labels_keras_train.append([0.,1.])
         else:
             for i in range (0,30):
-                labelsList.append([[0.,1.]]*61)
+                labelsList.append([1.])
                 # labels_keras_train.append([0.,1.])
         files = gop('ls {}/{}'.format(pathName, types)).split('\n')
         # 2ª dimensão dos dados contendo as sessões (trials)
@@ -130,11 +130,11 @@ labels_keras_train = list()
 labels_keras_test = list()
 
 dataTrain = importNomalized(folders['large_train'], labels_keras_train)
-dataTest = importNomalized(folders['large_test'], labels_keras_test)
-print("labels train: ",labels_keras_train)
-print("labels train shape: ",labels_keras_train.shape)
-print("labels test: ",labels_keras_test)
-print("labels test shape: ",labels_keras_test.shape)
+# print("labels train: ",labels_keras_train)
+# print("labels train shape: ",labels_keras_train.shape)
+# dataTest = importNomalized(folders['large_test'], labels_keras_test)
+# print("labels test: ",labels_keras_test)
+# print("labels test shape: ",labels_keras_test.shape)
 
 
 # mudança no shape
@@ -147,15 +147,15 @@ newData = None
 print(dataTrain.shape)
 print("data train shape: ",dataTrain.shape)
 
-# mudança no shape
-newData = list()
-for person in dataTest:
-    for eletrodos in person:
-        newData.append(eletrodos)
-dataTest = np.array(newData)
-newData = None
-print(dataTest.shape)
-print("data test shape: ",dataTest.shape)
+# # mudança no shape
+# newData = list()
+# for person in dataTest:
+#     for eletrodos in person:
+#         newData.append(eletrodos)
+# dataTest = np.array(newData)
+# newData = None
+# print(dataTest.shape)
+# print("data test shape: ",dataTest.shape)
 
 # ________________________________________________________________________
 
@@ -164,36 +164,40 @@ print("data test shape: ",dataTest.shape)
 # desenvolvimento do modelo Keras para uma MLP
 
 labels_keras_train = np.array(labels_keras_train)
+print("labels train shape: ",labels_keras_train.shape)
+
 
 model = Sequential()
-model.add(Dense(570, activation='relu', input_shape=(61,256)))
-model.add(Dense(61, activation='relu'))
+model.add(Dense(units=256, activation='relu', input_shape=(570,61,256)))
+# model.add(Dense(61, activation='relu'))
 # model.add(Dense(570, activation='relu')
 # model.add(Dense(256, activation='softmax'))
-model.add(Dense(2, activation='softmax'))
+# model.add(Dense(1, activation='softmax'))
+model.add(Dense(1, activation='sigmoid'))
 
 # Aplicação de um modelo de descida de gradiente utilizando o Stocastic Gradient Descendent (SGD)
 sgd = SGD(lr=0.05, momentum=0.0)
 # Função de otimização da rede: ADAM
 adam = Adam(lr=0.005, beta_1=0.9, beta_2=0.999)
 # Função de custo baseada em dados originalmente categóricos
-model.compile(loss='categorical_crossentropy', optimizer=adam,
+model.compile(loss='sparse_categorical_crossentropy', optimizer=adam,
               metrics=['accuracy'])
 
 model.summary()
 
 
-history = model.fit(data, labels_keras, epochs=30, batch_size=30)
+history = model.fit(dataTrain, labels_keras_train, epochs=30, batch_size=30)
 plot_history(history)
 
-score = model.evaluate(data, labels_keras, batch_size=30)
-score = model.predict_classes(data)
-y_true = [np.where(x == 1)[0][0] for x in labels_keras]
+# score = model.evaluate(dataTrain, labels_keras_train, batch_size=30)
+# score = model.predict_classes(dataTrain)
+# y_true = [np.where(x == 1)[0][0] for x in labels_keras_train]
+# print(score)
 # print('Acurácia: %0.2f%%' % (accuracy_score(y_true, score) * 100))
 # print('Matriz de confusão:')
-print(confusion_matrix(y_true, score))
-print()
-print(classification_report(y_true, score, digits=5))
+# print(confusion_matrix(y_true, score))
+# print()
+# print(classification_report(y_true, score, digits=5))
 
 
 
