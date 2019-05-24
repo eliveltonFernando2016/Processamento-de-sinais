@@ -6,7 +6,7 @@ from subprocess import getoutput as gop
 import matplotlib.pyplot as plt
 import glob
 from copy import deepcopy
-from sklearn.preprocessing import LabelEncoder
+from sklearn.preprocessing import LabelEncoder, StandardScaler
 from sklearn.metrics import classification_report, accuracy_score, confusion_matrix
 from sklearn.model_selection import GridSearchCV, train_test_split
 from keras import regularizers
@@ -65,12 +65,19 @@ folders = {
 
 ch_names = []
 create_ch_name = False
+labels_keras_train = list()
 
-# carregando pasta "small"
-small_dir = gop('ls {}'.format(folders['large_train'])).split('\n')
+# carregando pasta "large_train"
+path = gop('ls {}'.format(folders['large_train'])).split('\n')
 # 1ª dimensão dos dados contendo os sujeitos. Ex.: C_1, a_m, etc
 subjects = list()
-for types in small_dir:
+for types in path:
+    if("co2c" not in types):
+        for i in range (0,30):
+            labels_keras.append(0)
+    else:
+        for i in range (0,30):
+            labels_keras.append(1)
     files = gop('ls {}/{}'.format(folders['large_train'], types)).split('\n')
     # 2ª dimensão dos dados contendo as sessões (trials)
     trials = list()
@@ -103,28 +110,29 @@ for types in small_dir:
 data = np.array(subjects)
 print(data.shape)
 
+# normalização dos dados
 newData = list()
+scaler = StandardScaler()
 for person in data:
     newEletrodos = list()
     for eletrodos in person:
-        newEletrodos.append(normalize(eletrodos, axis=0))
+        scaler.fit(eletrodos)
+        newEletrodos.append(scaler.transform(eletrodos))
     newData.append(np.array(newEletrodos))
 data = np.array(newData)
 print(data.shape)
 
 
+# mudança no shape
 newData = list()
 for person in data:
     for eletrodos in person:
-        newData.append(normalize(eletrodos, axis=0))
+        newData.append(eletrodos)
 data = np.array(newData)
 newData = None
 print(data.shape)
-print(ch_names)
-
 
 # ________________________________________________________________________
-# remmover X, nd e Y
 
 # definição de uma fração do regularizador
 l = 0.01
@@ -155,6 +163,9 @@ l = 0.01
 #     X_train, y_train, test_size=0.3, shuffle=True)
 
 # desenvolvimento do modelo Keras para uma MLP
+
+labels_keras = np.array(labels_keras)
+
 model = Sequential()
 model.add(Dense(570, activation='relu', input_shape=(64,256)))
 model.add(Dense(64, activation='relu'))
@@ -169,25 +180,18 @@ model.compile(loss='categorical_crossentropy', optimizer=adam,
               metrics=['accuracy'])
 
 
-model.summary()
-
-
 # 
 # 
 # PAREI AQUI!!!!
 # 
 # 
 
-
-# labels = ch_names*570
-# # Convert labels to categorical one-hot encoding
-# one_hot_labels = to_categorical(labels)
-
+# remmover X, nd e Y
 # diferenciar controle de não controle 4 caractere pirmeira linha
 # utilizar stardtscaler para normalizar
 
 
-history = model.fit(data, ALCOOL OU NOT []  , epochs=30)
+history = model.fit(data, labels_keras , epochs=30)
 plot_history(history)
 
 # score = model.evaluate(x_test, y_test, batch_size=128)
