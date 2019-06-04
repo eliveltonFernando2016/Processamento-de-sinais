@@ -26,14 +26,15 @@ def importNomalized(pathName, labelsList):
     for types in path:
         if("co2c" in types):
             for i in range (0,30):
-                labelsList.append([0.])
+                labelsList.append([[0]]*61)
                 # labels_keras_train.append([0.,1.])
         else:
             for i in range (0,30):
-                labelsList.append([1.])
+                labelsList.append([[1]]*61)
                 # labels_keras_train.append([0.,1.])
         files = gop('ls {}/{}'.format(pathName, types)).split('\n')
         # 2ª dimensão dos dados contendo as sessões (trials)
+        
         trials = list()
         for f in files:
             arquivo = open('{}/{}/{}'.format(pathName, types, f))
@@ -62,7 +63,19 @@ def importNomalized(pathName, labelsList):
             arquivo.close()
         subjects.append(trials)
     data = np.array(subjects)
-    print(data.shape)
+
+    # if("large_test" in pathName):
+    #     for k in range(0,len(data)):
+    #         for i in range(0,len(data[k])):
+    #             if(len(data[k][i]) < 64):
+    #                 print("pasta: ",k)
+    #                 # print("arquivo: ",i)
+    #                 # print("len arquivo: ",len(data[k][i]))
+    #                 # print("data", data[k][i])
+
+    #     exit(1)
+                
+    
 
     # normalização dos dados e remoção x, y e nd
     newData = list()
@@ -75,47 +88,9 @@ def importNomalized(pathName, labelsList):
             newEletrodos.append(scaler.transform(eletrodos))
         newData.append(np.array(newEletrodos))
     data = np.array(newData)
+
     print(data.shape)
     return data
-
-def plot_history(h):
-    loss_list = [s for s in h.history.keys() if 'loss' in s and 'val' not in s]
-    val_loss_list = [s for s in h.history.keys() if 'loss' in s and 'val' in s]
-    acc_list = [s for s in h.history.keys() if 'acc' in s and 'val' not in s]
-    val_acc_list = [s for s in h.history.keys() if 'acc' in s and 'val' in s]
-    if len(loss_list) == 0:
-        print('Custo não está presente no histórico')
-        return
-    epochs = range(1, len(history.history[loss_list[0]]) + 1)
-    # Custo
-    plt.figure(1)
-    for l in loss_list:
-        plt.plot(epochs, h.history[l], 'b',
-                 label='Custo [treinamento] (' + str(str(format(
-                    h.history[l][-1],'.5f'))+')'))
-    for l in val_loss_list:
-        plt.plot(epochs, h.history[l], 'g',
-                 label='Custo [validação] (' + str(str(format(
-                    h.history[l][-1],'.5f'))+')'))
-    plt.title('Custo')
-    plt.xlabel('Épocas')
-    plt.ylabel('Custo')
-    plt.legend()
-    # Acurácia
-    plt.figure(2)
-    for l in acc_list:
-        plt.plot(epochs, h.history[l], 'b',
-                 label='Acurácia [treinamento] (' + str(format(
-                    h.history[l][-1],'.5f'))+')')
-    for l in val_acc_list:
-        plt.plot(epochs, h.history[l], 'g',
-                 label='Acurácia [validação] (' + str(format(
-                    h.history[l][-1],'.5f'))+')')
-    plt.title('Acurácia')
-    plt.xlabel('Épocas')
-    plt.ylabel('Acurácia')
-    plt.legend()
-    plt.show()
 
 
 # identificando pastas
@@ -132,7 +107,7 @@ labels_keras_test = list()
 dataTrain = importNomalized(folders['large_train'], labels_keras_train)
 # print("labels train: ",labels_keras_train)
 # print("labels train shape: ",labels_keras_train.shape)
-# dataTest = importNomalized(folders['large_test'], labels_keras_test)
+dataTest = importNomalized(folders['large_test'], labels_keras_test)
 # print("labels test: ",labels_keras_test)
 # print("labels test shape: ",labels_keras_test.shape)
 
@@ -159,35 +134,76 @@ print("data train shape: ",dataTrain.shape)
 
 # ________________________________________________________________________
 
-# definição de uma fração do regularizador
-# l = 0.01
-# desenvolvimento do modelo Keras para uma MLP
-
 labels_keras_train = np.array(labels_keras_train)
+labels_keras_test = np.array(labels_keras_test)[0:30]
 print("labels train shape: ",labels_keras_train.shape)
 
-
 model = Sequential()
-model.add(Dense(units=256, activation='relu', input_shape=(570,61,256)))
-# model.add(Dense(61, activation='relu'))
-# model.add(Dense(570, activation='relu')
-# model.add(Dense(256, activation='softmax'))
-# model.add(Dense(1, activation='softmax'))
-model.add(Dense(1, activation='sigmoid'))
-
-# Aplicação de um modelo de descida de gradiente utilizando o Stocastic Gradient Descendent (SGD)
-sgd = SGD(lr=0.05, momentum=0.0)
-# Função de otimização da rede: ADAM
-adam = Adam(lr=0.005, beta_1=0.9, beta_2=0.999)
+model.add(Dense(units = 100, activation='relu', input_shape = (61,256)))
+model.add(Dense(units = 50, activation='relu'))
+model.add(Dense(units = 1, activation='sigmoid'))
 # Função de custo baseada em dados originalmente categóricos
-model.compile(loss='sparse_categorical_crossentropy', optimizer=adam,
-              metrics=['accuracy'])
-
+model.compile(loss='binary_crossentropy', optimizer='adam', metrics=['accuracy'])
 model.summary()
+# 60%
+# history = model.fit(dataTrain, labels_keras_train, nb_epoch=300)
+# 62%
+# history = model.fit(dataTrain, labels_keras_train, nb_epoch=50)
+# 74%
+history = model.fit(dataTrain, labels_keras_train, nb_epoch=30)
+# 62%
+# history = model.fit(dataTrain, labels_keras_train, nb_epoch=15)
 
 
-history = model.fit(dataTrain, labels_keras_train, epochs=30, batch_size=30)
-plot_history(history)
+prev = model.predict(dataTest[8])
+prev = (prev > 0.50)
+# print(prev.shape)
+# print(prev)
+# print(prev[0])
+# print(dataTest[0].shape)
+
+# print("E o resultado é??????????")
+# print("Na mão então....")
+
+# true, false = 0, 0
+# for i in prev:
+#     for j in i:
+#         for k in j:
+#             if(k):
+#                 true+=1
+#             else:
+#                 false+=1
+
+# print("True: "+str(true))
+# print("False: "+str(false))
+
+
+# if(true > (true+false)/2):
+#     print("ESSe cara é um bebado noia: "+str(((100*(true))/(true+false))))
+# else:
+#     print("esse noisa não é o cara: "+str((100*(false))/(true+false)))
+
+# exit(0)
+labels_keras_test = (labels_keras_test == 1)
+print(labels_keras_test.shape)
+print(prev.shape)
+print(labels_keras_test)
+print(prev)
+
+print("RESULTADO PARA O TESTE: ", accuracy_score(labels_keras_test, prev))
+# matrix = confusion_matrix(prev, dataTest[0])
+
+
+# def test_model(test, name_model):
+
+#     model = load_model(name_model)
+#     prev = model.predict(test[0])
+
+#     prev = (prev > 0.50)
+#     print("RESULTADO PARA O TESTE "+name_model+": "+str(accuracy_score(prev, test[1])))
+#     matrix = confusion_matrix(prev, test[1])
+
+
 
 # score = model.evaluate(dataTrain, labels_keras_train, batch_size=30)
 # score = model.predict_classes(dataTrain)
