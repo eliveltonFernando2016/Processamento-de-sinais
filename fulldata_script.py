@@ -1,37 +1,80 @@
-from re import search
-import numpy as np
 import os
 import mne
-from subprocess import getoutput as gop
-import matplotlib.pyplot as plt
 import glob
+
+import numpy as np
+import matplotlib.pyplot as plt
+
+from re import search
+from subprocess import getoutput as gop
 from copy import deepcopy
+
 from sklearn.preprocessing import LabelEncoder, StandardScaler
 from sklearn.metrics import classification_report, accuracy_score, confusion_matrix
 from sklearn.model_selection import GridSearchCV, train_test_split
+
 from keras import regularizers
 from keras.models import Sequential
 from keras.layers import Dense, Dropout
 from keras.optimizers import SGD, Adam
 from keras.utils.np_utils import to_categorical
 
-def importNomalized(pathName, labelsList):
+# pastas de dados
+folders = {
+    'small': 'dataset/small',
+    'large_train': 'dataset/large_train',
+    'large_test': 'dataset/large_test',
+    'full': 'dataset/full',
+}
+
+# Testes de cada pessoa da base
+tests =  ["S1 obj", "S2 nomatch", "S2 match"]
+
+#filtra a data e remove os eletrodos desnecessários (x, y, z)
+def filterData(data):
+    # normalização dos dados e remoção x, y e nd
+    newData = list()
+    scaler = StandardScaler()
+    for person in data:
+        newEletrodos = list()
+        for eletrodos in person:
+            eletrodos = np.delete(eletrodos, [31,62,63], axis=0)
+            scaler.fit(eletrodos)
+            newEletrodos.append(scaler.transform(eletrodos))
+        newData.append(np.array(newEletrodos))
+
+    return np.array(newData)
+
+# Aletera o shape da data de (x,y,z,k) para (xy,z,k) = (2,2,3,4) para (4,3,4)
+def alterShape(data, tipo):
+    # mudança no shape
+    newData = list()
+    for person in data[0]:
+        for eletrodos in person:
+            newData.append(eletrodos)
+    data[0] = np.array(newData)
+    newData = None
+    print("data "+tipo+" shape: ",data[0].shape)
+
+    return data
+
+#Função principal que importa os dados
+def importNomalized(pathName, exp):
+    labelsList = list()
     ch_names = []
     create_ch_name = False
     # carregando pasta "large_train"
-    # path = gop('ls {}'.format(folders['large_train'])).split('\n')
     path = gop('ls {}'.format(pathName)).split('\n')
     # 1ª dimensão dos dados contendo os sujeitos. Ex.: C_1, a_m, etc
     subjects = list()
     for types in path:
         if("co2c" in types):
-            for i in range (0,30):
+            for i in range (0,10):
                 labelsList.append([[0]]*61)
-                # labels_keras_train.append([0.,1.])
         else:
-            for i in range (0,30):
+            for i in range (0,10):
                 labelsList.append([[1]]*61)
-                # labels_keras_train.append([0.,1.])
+
         files = gop('ls {}/{}'.format(pathName, types)).split('\n')
         # 2ª dimensão dos dados contendo as sessões (trials)
         
@@ -59,165 +102,87 @@ def importNomalized(pathName, labelsList):
                         ch_names.append(t.group('ch_name').lower())
             create_ch_name = True
             chs.append(values)
-            trials.append(chs)
+
+            arquivo.seek(32*3)
+            line =  arquivo.readline()
             arquivo.close()
+
+            if exp in line:
+                trials.append(chs)
+
         subjects.append(trials)
     data = np.array(subjects)
+    
+    return [filterData(data),np.asarray(labelsList)]
 
-    # if("large_test" in pathName):
-    #     for k in range(0,len(data)):
-    #         for i in range(0,len(data[k])):
-    #             if(len(data[k][i]) < 64):
-    #                 print("pasta: ",k)
-    #                 # print("arquivo: ",i)
-    #                 # print("len arquivo: ",len(data[k][i]))
-    #                 # print("data", data[k][i])
+# cria o modelo
+def createModel(dataTrain):
+#   Cria um modelo sequencial com 3 camadas sendo a ultíma com saída binária
+    model = Sequential()
+    model.add(Dense(units = 100, activation='relu', input_shape = (61,256)))
+    model.add(Dense(units = 50, activation='relu'))
+    model.add(Dense(units = 1, activation='sigmoid'))
+    model.compile(loss='binary_crossentropy', optimizer='adam', metrics=['accuracy'])
 
-    #     exit(1)
-                
+#   Printa o modelo (camadas)
+    model.summary()
+
+#   74%
+    history = model.fit(dataTrain[0], dataTrain[1], nb_epoch=30)
+    
+    return model
+
+# Testa os modelos construídos
+def testModel(model, dataTest):
+    return [(model.predict(dataTest[0]) > 0.5), (dataTest[1] == 1)]
     
 
-    # normalização dos dados e remoção x, y e nd
-    newData = list()
-    scaler = StandardScaler()
-    for person in data:
-        newEletrodos = list()
-        for eletrodos in person:
-            eletrodos = np.delete(eletrodos, [31,62,63], axis=0)
-            scaler.fit(eletrodos)
-            newEletrodos.append(scaler.transform(eletrodos))
-        newData.append(np.array(newEletrodos))
-    data = np.array(newData)
+# Função que testa a precisão
+def accuracy(prev, labels, test):
+    acerto = 0
+    erro = 0
+    eletrodo = 0
 
-    print(data.shape)
-    return data
+    # labels = (labels == 1)
 
+    for pre, lab in zip(prev, labels):
+        for x1, x2 in zip(pre, lab):
+            if(x1[0] == x2[0]):
+                eletrodo+=1
+        if(eletrodo > 30):
+            acerto+=1
+        else:
+            erro+=1
+        eletrodo =0
 
-# identificando pastas
-folders = {
-    'small': 'dataset/small',
-    'large_train': 'dataset/large_train',
-    'large_test': 'dataset/large_test',
-    'full': 'dataset/full',
-}
-
-labels_keras_train = list()
-labels_keras_test = list()
-
-dataTrain = importNomalized(folders['large_train'], labels_keras_train)
-# print("labels train: ",labels_keras_train)
-# print("labels train shape: ",labels_keras_train.shape)
-dataTest = importNomalized(folders['large_test'], labels_keras_test)
-# print("labels test: ",labels_keras_test)
-# print("labels test shape: ",labels_keras_test.shape)
-
-
-# mudança no shape
-newData = list()
-for person in dataTrain:
-    for eletrodos in person:
-        newData.append(eletrodos)
-dataTrain = np.array(newData)
-newData = None
-print(dataTrain.shape)
-print("data train shape: ",dataTrain.shape)
-
-# # mudança no shape
-# newData = list()
-# for person in dataTest:
-#     for eletrodos in person:
-#         newData.append(eletrodos)
-# dataTest = np.array(newData)
-# newData = None
-# print(dataTest.shape)
-# print("data test shape: ",dataTest.shape)
+    print("Accuracy "+test+": "+str((100*(acerto))/(acerto+erro)))
 
 # ________________________________________________________________________
 
-labels_keras_train = np.array(labels_keras_train)
-labels_keras_test = np.array(labels_keras_test)[0:30]
-print("labels train shape: ",labels_keras_train.shape)
 
-model = Sequential()
-model.add(Dense(units = 100, activation='relu', input_shape = (61,256)))
-model.add(Dense(units = 50, activation='relu'))
-model.add(Dense(units = 1, activation='sigmoid'))
-# Função de custo baseada em dados originalmente categóricos
-model.compile(loss='binary_crossentropy', optimizer='adam', metrics=['accuracy'])
-model.summary()
-# 60%
-# history = model.fit(dataTrain, labels_keras_train, nb_epoch=300)
-# 62%
-# history = model.fit(dataTrain, labels_keras_train, nb_epoch=50)
-# 74%
-history = model.fit(dataTrain, labels_keras_train, nb_epoch=30)
-# 62%
-# history = model.fit(dataTrain, labels_keras_train, nb_epoch=15)
+def main():
+    data = list()
+    dataTst = list()
+    models = list()
+    results = list()
 
+    for tst in tests:
+        print("EXP: "+tst)
+        data.append(alterShape(importNomalized(folders['large_train'], tst), "treino"))
+        dataTst.append(alterShape(importNomalized(folders['large_test'], tst), "teste"))
 
-prev = model.predict(dataTest[8])
-prev = (prev > 0.50)
-# print(prev.shape)
-# print(prev)
-# print(prev[0])
-# print(dataTest[0].shape)
-
-# print("E o resultado é??????????")
-# print("Na mão então....")
-
-# true, false = 0, 0
-# for i in prev:
-#     for j in i:
-#         for k in j:
-#             if(k):
-#                 true+=1
-#             else:
-#                 false+=1
-
-# print("True: "+str(true))
-# print("False: "+str(false))
+    for i in range(0, 3):
+        models.append(createModel(data.pop(0)))
+    
+    for model in models:
+        results.append(testModel(model, dataTst.pop(0)))
+    
+    for acc, test in zip(results,tests):
+        accuracy(acc[0],acc[1], test)
 
 
-# if(true > (true+false)/2):
-#     print("ESSe cara é um bebado noia: "+str(((100*(true))/(true+false))))
-# else:
-#     print("esse noisa não é o cara: "+str((100*(false))/(true+false)))
-
-# exit(0)
-labels_keras_test = (labels_keras_test == 1)
-print(labels_keras_test.shape)
-print(prev.shape)
-print(labels_keras_test)
-print(prev)
-
-print("RESULTADO PARA O TESTE: ", accuracy_score(labels_keras_test, prev))
-# matrix = confusion_matrix(prev, dataTest[0])
-
-
-# def test_model(test, name_model):
-
-#     model = load_model(name_model)
-#     prev = model.predict(test[0])
-
-#     prev = (prev > 0.50)
-#     print("RESULTADO PARA O TESTE "+name_model+": "+str(accuracy_score(prev, test[1])))
-#     matrix = confusion_matrix(prev, test[1])
-
-
-
-# score = model.evaluate(dataTrain, labels_keras_train, batch_size=30)
-# score = model.predict_classes(dataTrain)
-# y_true = [np.where(x == 1)[0][0] for x in labels_keras_train]
-# print(score)
-# print('Acurácia: %0.2f%%' % (accuracy_score(y_true, score) * 100))
-# print('Matriz de confusão:')
-# print(confusion_matrix(y_true, score))
-# print()
-# print(classification_report(y_true, score, digits=5))
-
-
-
-
+if __name__ == '__main__':
+    main()
 
 
 
@@ -288,3 +253,13 @@ print("RESULTADO PARA O TESTE: ", accuracy_score(labels_keras_test, prev))
 #             print("data", data[k][i])
 
 
+# if("full" in pathName):
+#     for k in range(0,len(data)):
+#         for i in range(0,len(data[k])):
+#             if(len(data[k][i]) < 64):
+#                 print("pasta: ",k)
+#                 # print("arquivo: ",i)
+#                 # print("len arquivo: ",len(data[k][i]))
+#                 # print("data", data[k][i])
+
+#     exit(1)
